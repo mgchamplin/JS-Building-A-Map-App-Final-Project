@@ -1,49 +1,63 @@
-// Create map:                                                       
-
 const targetMap = {
 	coordinates: [],
 	map: {}, 
-	markers: {},
+    markerArray: [],
 
-	// build leaflet map
+	/*Build leaflet map
+    */
 	showMap() {
-		this.map = L.map('map', {
-            center: this.coordinates,
-            zoom: 13,
-            });
+		this.map = L.map('map', {center: this.coordinates, zoom: 13,});
 
-		// add openstreetmap tiles
 		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution:
                 '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             }).addTo(this.map)
 
-		// create and add geolocation marker
+		/*
+        ** Add a marker to the map
+        */
 		const marker = L.marker(this.coordinates)
             marker
             .addTo(this.map)
-            .bindPopup('<p1><b>Your current location</b><br></p1>')
+            .bindPopup('<p1><b>*You be here*</b><br></p1>')
             .openPopup()
 	},
 
-    addOneMarker(lat_long, biz_name) {
-        this.markers = L.marker(lat_long)
-			.bindPopup(`<p1>${biz_name}</p1>`)
-			.addTo(this.map)
+    /* Clear all markers on the map (except the current location)
+    */
+    clearMarkers() {
+        if (this.markerArray.length === 0) return;  // No markers yet
+
+        this.markerArray.forEach(marker=> {         // Remover marker
+            this.map.removeLayer(marker)
+        })
+        this.markerArray.length = 0;                // Empty marker container
     },
 
-	// add business markers
+    /* Add one vendor marker
+    */
+    addOneMarker(lat_long, biz_name) {
+        this.markerArray.push(L.marker(lat_long)
+                        .bindPopup(`<p1>${biz_name}</p1>`)
+                        .addTo(this.map))
+    },
+
+    /* Add markers for each vendor in the group
+    */
 	addMarkers() {
-		for (var i = 0; i < this.businesses.length; i++) 
-            this.addOneMarker([this.businesses[i].lat, this.businesses[i].long], this.businesses[i].name)
+        businesses.forEach(this_business => {
+            this.addOneMarker([this_business.lat, this_business.long], this_business.name)
+        })
 	},
 
+    /* Throw up all the vendors on the map
+    */
     showBusinesses(business_group) {
-        let businesses = business_group.map((biz) => {
+        let businesses = business_group.map((vendor) => {
             let site = {
-                name: biz.name,
-                lat: biz.geocodes.main.latitude,
-                long: biz.geocodes.main.longitude
+                name: vendor.name,
+                lat: vendor.geocodes.main.latitude,
+                long: vendor.geocodes.main.longitude
             };
             targetMap.addOneMarker([site.lat, site.long], site.name)
             
@@ -52,6 +66,8 @@ const targetMap = {
     }
 }
 
+/* User's local coordinates
+*/
 async function getCoords(){
 	const pos = await new Promise((resolve, reject) => {
 		navigator.geolocation.getCurrentPosition(resolve, reject)
@@ -59,6 +75,8 @@ async function getCoords(){
 	return [pos.coords.latitude, pos.coords.longitude]
 }
 
+/* Hold everything off until we get the user's coordinates
+*/
 window.onload = async () => {
 	const coords = await getCoords()
 	targetMap.coordinates = coords
@@ -66,6 +84,8 @@ window.onload = async () => {
     console.log("My location: " + targetMap.coordinates)
 }
 
+/* Fetch the 5 nearest businesses in the group from 4Square
+*/
 async function getFoursquare(bizCategory) {
     const options = {
         method: 'GET',
@@ -85,34 +105,16 @@ async function getFoursquare(bizCategory) {
     return businesses
 }
 
-async function getCoffeeShops() {
-    console.log("Find coffee")
-    let businessGroup = await getFoursquare('Coffee')
-    targetMap.showBusinesses(businessGroup)  
-}
-async function getRestaurants() {
-    console.log("Find Restaurants")
-    let businessGroup = await getFoursquare('Restaurants')
-    targetMap.showBusinesses(businessGroup)  
-}
-async function getHotels() {
-    console.log("Find Hotels")
-    let businessGroup = await getFoursquare('Hotel')
-    targetMap.showBusinesses(businessGroup)  
-}
-async function getMarkets() {
-    console.log("Find Markets")
-    let businessGroup = await getFoursquare('Restaurants')
+/* Clear the old markers out, then show the new set of vendors
+*/
+async function getVendors (vendor_category) {
+    targetMap.clearMarkers()
+
+    let businessGroup = await getFoursquare(vendor_category)
     targetMap.showBusinesses(businessGroup)  
 }
 
-document.getElementById("b1").addEventListener("click", function(){ getCoffeeShops() })
-document.getElementById("b2").addEventListener("click", function(){ getRestaurants() })
-document.getElementById("b3").addEventListener("click", function(){ getHotels() })
-document.getElementById("b4").addEventListener("click", function(){ getMarkets() })
+vendorCategories = ["Coffee","Restaurants","Hotel","Market"]
 
-//fsq3bGMbnnDlsN4TQJUVXNSjgs7V9tw4Kfe3M0pgG0ol67U=
-
-
-
-
+for (let i=0; i < vendorCategories.length; i++) 
+    document.getElementById(`b${i+1}`).addEventListener("click", function(){ getVendors(vendorCategories[i]) }) 
